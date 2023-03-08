@@ -4,3 +4,5 @@
 Repository to accompany paper
 
 Please note that the binder environment can be quite slow to load.
+
+To reproduce the analyis in the paper please click to open the "main_analysis.Rmd" markdown file in the lower right-hand part of the window when Rstudio opens.
