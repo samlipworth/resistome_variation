@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+  - r
+  - bioconda
+dependencies:
+  - r-tidyverse
+  - r-rcolorbrewer
+  - r-patchwork
+  - r-igraph
+  - r-ggnewscale
+  - r-desctools
+  - r-ggmsa
