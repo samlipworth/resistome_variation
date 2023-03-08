@@ -1,5 +1,5 @@
 # Exploring the extent of uncatalogued genetic variation in antimicrobial resistance gene families in *Escherichia coli*
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/samlipworth/resistome_variation/HEAD?urlpath=rstudio?labpath=main_analysis.rmd)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/samlipworth/resistome_variation/HEAD?urlpath=rstudio?labpath=main_analysis.Rmd)
 
 Repository to accompany paper
 
