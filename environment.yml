@@ -10,3 +10,8 @@ dependencies:
   - r-ggnewscale
   - r-desctools
   - r-ggmsa
+  - r-janitor
+  - r-ggpubr
+  - r-logistf
+  - r-micropan
+  - r-caret
