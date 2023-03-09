@@ -581,7 +581,7 @@ prop.test(x=(fn),n=(tp+fn))
 
 For all antibiotic classes, the majority of explainable resistance was conferred by a small number of ARGs/mutations, with a large number of rarer alleles contributing relatively little (Figure 2). The proportion of resistant isolates was particularly variable for some alleles/ARGs classified by AMRFinder as conferring resistance to ciprofloxacin, fosfomycin, piperacillin-tazobactam and trimethoprim. The greatest phenotypic heterogeneity occurred with carriage of blaTEM-1 for co-amoxiclav (1107/2130 52.0% isolates resistant) and piperacillin-tazobactam (197/3099 6.4% isolates resistant). 
 
-```{r}
+```{r Figure 2}
 
 ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT')
 ag_ecol$new_allele<-paste0(ag_ecol$class,'_',ag_ecol$allele)
@@ -1337,11 +1337,21 @@ amrfinder<-filter(amrfinder,grepl('AMINOGLYCOSIDE',Class) | grepl('AMINOGLYCOSID
                     grepl('FOSFOMYCIN', Class) | grepl('FOSFOMYCIN',Subclass) |
                     grepl('TRIMETHOPRIM',Class) | grepl('TRIMETHOPRIM',Subclass))
 point<-filter(amrfinder,`Element subtype` =='POINT')
+#36637 genes detected
+
+amrfinder_exact<-filter(amrfinder,`% Identity to reference sequence`==100,`% Coverage of reference sequence`==100)
+#of which 17177 had 100% amino acid match
+
+17177/36637
 
 amrfinder<-filter(amrfinder,guuid %in% guuids$guuid)
 
 length(unique(out$guuid))
 #7153 isolates with at least one AMRFinder hit
+length(unique(out$gene))
+#159 AMRFinder genes
+
+
 
 core<-c("AcrR","GyrA","ParA","ParC","ParE","PtsI","SoxR","SoxS","UhpT","MarR","GlpT","AmpC","emrR","ftsI")
 out_family$allele<-ifelse(out_family$gene %in% core,paste0(out_family$gene,'_1'),out_family$allele)
@@ -1353,7 +1363,9 @@ length(unique(out_family$amr_associated_gene_family))
 out$new_allele<-paste0(out$class,'_',out$allele)
 length(unique(out$new_allele))
 
+
 #1292 unique ARGs
+
 
 out_save<-out
 
