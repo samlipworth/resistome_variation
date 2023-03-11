@@ -45,6 +45,11 @@ res<-read_tsv('./data/global_pheno.tsv')
 res<-select(res,guuid,Coamox,Ceftriaxone,Ciprofloxacin,Gentamicin,Trimethoprim,Piptaz,Ampicillin,Fosfomycin)
 guuids<-left_join(guuids,res,by=c("Isolate"="guuid"))
 
+quast<-read_tsv('./data/quast.tsv')
+quast<-janitor::clean_names(quast)
+quast$assembly<-str_replace_all(quast$assembly,'_','-')
+guuids<-left_join(guuids,quast,by=c("Isolate"="assembly"))
+
 nrow(janitor::remove_empty(guuids[,4:11],which = "rows"))
 #8586 E. coli isolates with linked WGS and phen
 
