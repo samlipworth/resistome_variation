@@ -11,6 +11,4 @@ Repository to accompany paper - click below to access.
 
 [![Medrxiv](https://github.com/samlipworth/resistome_variation/blob/main/medRxiv_homepage_logo.png)](https://www.medrxiv.org/content/10.1101/2023.03.14.23287259v1)
 
-<img src="https://github.com/samlipworth/resistome_variation/blob/main/medRxiv_homepage_logo.png" data-canonical-src="https://www.medrxiv.org/content/10.1101/2023.03.14.23287259v1" width="80" height="40" />
-
 
