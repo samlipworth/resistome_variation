@@ -3,7 +3,7 @@
 
 Repository to accompany paper - click below to access.
 
-[![Medrxiv](https://github.com/samlipworth/resistome_variation/blob/main/medRxiv_homepage_logo.png | width=100)](https://www.medrxiv.org/content/10.1101/2023.03.14.23287259v1)
+[![Medrxiv](https://github.com/samlipworth/resistome_variation/blob/main/medRxiv_homepage_logo.png)](https://www.medrxiv.org/content/10.1101/2023.03.14.23287259v1)
 
 
 Please note that the binder environment can be quite slow to load.
