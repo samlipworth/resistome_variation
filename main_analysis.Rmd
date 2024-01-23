@@ -42,17 +42,22 @@ table(guuids$Study)
 table(guuids$Accession)
 
 res<-read_tsv('./data/global_pheno.tsv')
-res<-select(res,guuid,Coamox,Ceftriaxone,Ciprofloxacin,Gentamicin,Trimethoprim,Piptaz,Ampicillin,Fosfomycin)
+res<-select(res,guuid,Coamox,Ceftriaxone,Ciprofloxacin,Gentamicin,Trimethoprim,Piptaz,Ampicillin)
 guuids<-left_join(guuids,res,by=c("Isolate"="guuid"))
 
 quast<-read_tsv('./data/quast.tsv')
 quast<-janitor::clean_names(quast)
 quast$assembly<-str_replace_all(quast$assembly,'_','-')
+
 guuids<-left_join(guuids,quast,by=c("Isolate"="assembly"))
 
-nrow(janitor::remove_empty(guuids[,4:11],which = "rows"))
-#8586 E. coli isolates with linked WGS and phen
+guuids$unexpected_length<-ifelse(guuids$total_length > 6e6 | guuids$total_length < 4e6,1,0)
 
+
+guuids<-filter(guuids,unexpected_length==0)
+guuids_keep<-guuids
+
+complete_guuids<-guuids[apply(guuids[ , 4:10], 1, function(x) any(!is.na(x))),]
 ```
 
 The sensitivity of the AMRFinder database (percentage of phenotypically resistant isolates with an ARG as detected by AMRFinder) using 100% identity/coverage filters was notably poorer for beta-lactam/beta-lactamase inhibitor (BL-BLI) combinations (co-amoxiclav 24.9% (95% CI 22.7-26.9), piperacillin-tazobactam 40.7% (35.3-45.9) and fosfomycin (6.7% (0.3-44.0)) than other antibiotics considered (Table 1). The sensitivity for both co-amoxiclav and piperacillin-tazobactam could be improved by predicting isolates carrying blaTEM-1 as resistant but this reduced specificity (increase in sensitivity 61.5%/47.1% but reduce in specificity 29.5%/36.1% for co-amoxiclav/piperacillin-tazobactam respectively). No drugs met the FDA specified criteria for very major discrepancy but four (gentamicin, co-amoxiclav, ampicillin and trimethoprim) met the criteria for major discrepancy. When identity/coverage settings were relaxed to default settings, there was a drop in sensitivity but increase in specificity for six drugs (gentamicin, ampicillin, ciprofloxacin, ceftriaxone, fosfomycin and trimethoprim). This reduced the major error for ceftriaxone to within the FDA acceptability limit.
@@ -60,7 +65,7 @@ The sensitivity of the AMRFinder database (percentage of phenotypically resistan
 ```{r performance of AMRFinder database}
 #####Aminoglycosides
 
-all_guuids<-read_tsv('./data/guuids',col_names = c("guuid"))
+all_guuids<-read_tsv('./data/guuids',col_names = c("guuid")) %>% filter(guuid %in% guuids_keep$Isolate )
 
 res<-read_tsv('./data/global_pheno.tsv')
 
@@ -68,11 +73,11 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 #comment out as desired to get exact match or default settings
 
-#amrfinder<-read_tsv("./data/prediction/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data//amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 
 ag_res<-filter(guuids,Gentamicin==1)
 ag_counts<-filter(amrfinder,grepl('GENTAMICIN',Subclass)) %>% filter(guuid %in% ag_res$guuid) %>% group_by(`Gene symbol`) %>% count() %>% arrange(desc(n))
@@ -89,7 +94,8 @@ cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guu
 
 
 ## prevelance
-650/(7803+650)
+648/(7740+34+48+600)
+7740+34+48+600
 
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
@@ -120,9 +126,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 resfinder<-read_tsv('./data/resfinder_phenotypes.txt')
@@ -143,7 +149,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Coamox),positive="1")
 
 ## prevelance
-1621/(1621+3454)
+(1212+395)/(3411+26+1212+395)
+1212+395
+3411+26+1212+395
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -174,9 +182,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 ag_res<-filter(guuids,Ampicillin==1)
@@ -192,7 +200,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Ampicillin),positive="1")
 
 ## prevelance
-3842/(3842+3639)
+(352+3469)/(352+3469+3526+103)
+352+3469
+352+3469+3526+103
 
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
@@ -223,9 +233,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 ag_res<-filter(guuids,Ciprofloxacin==1)
@@ -241,7 +251,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Ciprofloxacin),positive="1")
 
 ## prevelance
-1165/(1165+7331)
+(39+1122)/(39+1122+1329+5976)
+39+1122
+39+1122+1329+5976
 
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
@@ -274,9 +286,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 ag_res<-filter(guuids,Ceftriaxone==1)
@@ -292,8 +304,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Ceftriaxone),positive="1")
 
 ## prevelance
-270/(270+3122)
-
+(19+248)/(19+248+143+2952)
+19+248
+19+248+143+2952
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -375,9 +388,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 ag_res<-filter(guuids,Trimethoprim==1)
@@ -393,8 +406,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Trimethoprim),positive="1")
 
 ## prevelance
-1515/(1515+2592)
-
+(191+1315)/(191+1315+2518+52)
+191+1315
+191+1315+2518+52
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -427,9 +441,9 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
-#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
 resfinder<-read_tsv('./data/resfinder_phenotypes.txt')
@@ -449,7 +463,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Piptaz),positive="1")
 
 ## prevelance
-329/(329+7832)
+(194+131)/(194+131+312+7493)
+194+131
+194+131+312+7493
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -481,8 +497,8 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
@@ -504,8 +520,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Piptaz),positive="1")
 
 ## prevelance
-329/(329+7832)
-
+(38+287)/(38+287+3192+4613)
+38+287
+38+287+3192+4613
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -536,8 +553,8 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
-amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
+#amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
 
@@ -560,8 +577,9 @@ guuids$predict_res<-ifelse(guuids$guuid %in% res_genes$guuid,1,0)
 cm<-caret::confusionMatrix(as.factor(guuids$predict_res),reference=as.factor(guuids$Coamox),positive="1")
 
 ## prevelance
-1621/(1621+3454)
-
+(201+1406)/(201+1406+2369+1068)
+201+1406
+201+1406+2369+1068
 tn<-cm$table[1,1]
 fn<-cm$table[1,2]
 tp<-cm$table[2,2]
@@ -588,7 +606,7 @@ For all antibiotic classes, the majority of explainable resistance was conferred
 
 ```{r Figure 2}
 
-ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT')
+ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT') %>% filter(guuid %in% guuids_keep$Isolate) %>% filter(!class =='fosfomycin')
 ag_ecol$new_allele<-paste0(ag_ecol$class,'_',ag_ecol$allele)
 
 count_table<-ag_ecol %>% distinct(guuid,new_allele,.keep_all = T) %>%  group_by(new_allele) %>% count() 
@@ -601,30 +619,50 @@ plot_table<-count_table
 plot_table<-separate(plot_table,new_allele,into=c('class','allele'),sep = '_')
 
 plot_table$class<-ifelse(plot_table$class == 'betalactam','beta-lactam',plot_table$class)
+plot_table$category<- case_when(plot_table$n ==1 ~ '1',
+                                plot_table$n ==2 ~ '2',
+                                plot_table$n >2 & plot_table$n <=5 ~ '3-5',
+                                plot_table$n >5 & plot_table$n <=10 ~ '6-10',
+                                TRUE ~ '>10')
+plot_table<-plot_table %>% group_by(class,category) %>% count()
+plot_table$category<-factor(plot_table$category,levels=c('1','2','3-5','6-10','>10'))
+
+plot_table <- plot_table %>%
+  mutate(row = case_when(
+    class %in% c("aminoglycoside", "beta-lactam", "cephalosporin") ~ "Row1",
+    class %in% c("quinolone", "trimethoprim") ~ "Row2",
+    TRUE ~ NA_character_
+  ))
 Figure2<-ggplot(plot_table) +
-  aes(x=n) +
-  geom_histogram(bins = 100) + theme_minimal() + 
-  xlab("Number of times ARG observed in dataset") + ylab("Count") + scale_x_log10() +
-  facet_wrap(~class)
+  aes(x=category,y=n) +
+  geom_bar(stat="identity") + theme_minimal() + 
+  xlab("Number of times ARG observed in dataset") + ylab("Count") + 
+  facet_wrap(~class,nrow = 1) + theme(axis.title.x = element_text(size = 18),
+        axis.title.y = element_text(size = 18),
+        axis.text.x = element_text(size=14),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14))
 
 
 #The greatest phenotypic heterogeneity occured with cariage of blaTEM-1...
 amrfinder<-read_tsv('./data/amrfinder_gladstone_merger.tsv')
 tem<-filter(amrfinder,`Gene symbol` =='blaTEM-1')
 guuids<-read_csv('./data/guuids',col_names = "Isolate")
+
 res<-read_tsv('./data/global_pheno.tsv')
 res<-select(res,guuid,Coamox,Ceftriaxone,Ciprofloxacin,Gentamicin,Trimethoprim,Piptaz,Ampicillin,Fosfomycin)
 guuids<-left_join(guuids,res,by=c("Isolate"="guuid"))
+guuids<-filter(guuids, Isolate %in% guuids_keep$Isolate)
 tem<-filter(guuids,Isolate %in% tem$guuid)
 table(tem$Coamox)
-1107+1023
-1107/2130
+1100+1015
+1100/2115
 
 
 
 table(tem$Piptaz)
-197+2902
-197/3099
+194+2890
+194/3084
 
 ```
 
@@ -644,6 +682,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids, guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 
@@ -692,6 +731,7 @@ out2<-select(out,index,s_with_gene,r_with_gene)
 out2<-pivot_longer(out2,names_to = "which",values_to = "pc",cols = 2:3)
 out2$which<- case_when(out2$which =='r_with_gene' ~ "Resistant isolates with gene",
                        out2$which == 's_with_gene' ~ "Sensistive isolates with gene")
+
 plot<-ggplot(out2) +
   geom_bar(aes(x=index,y=pc,fill=which),position="dodge",stat="identity", alpha=0.7) + 
   scale_fill_brewer(palette = "Dark2") +
@@ -725,7 +765,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
-
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
 
@@ -818,6 +858,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
@@ -903,6 +944,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
@@ -986,6 +1028,7 @@ res<-read_tsv('./data/global_pheno.tsv')
 
 res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
 
@@ -1072,6 +1115,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
@@ -1155,6 +1199,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
@@ -1238,6 +1283,7 @@ res<-filter(res,guuid %in% all_guuids$guuid)
 all_guuids<-filter(all_guuids,guuid %in% res$guuid)
 
 guuids<-left_join(all_guuids,res,by=c("guuid"))
+guuids<-filter(guuids,guuid %in% guuids_keep$Isolate)
 
 amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv")
 #amrfinder<-read_tsv("./data/amrfinder_gladstone_merger.tsv") %>% filter(`% Identity to reference sequence` ==100 & `% Coverage of reference sequence` ==100)
@@ -1317,7 +1363,7 @@ Piptaz<-plot+
   labs(color="") +
   ggtitle("Piperacillin-Tazobactam")
 
-Figure2<-(Ampicillin + Coamox) / (Piptaz + Ceftriaxone+ Ciprofloxacin) +(Gentamicin + Trimethoprim + Fosfomycin) +
+Figure2<-(Ampicillin + Coamox) / (Piptaz + Ceftriaxone+ Ciprofloxacin) +(Gentamicin + Trimethoprim) +
   plot_layout(guides="collect")
 
 ```
@@ -1326,7 +1372,9 @@ Figure2<-(Ampicillin + Coamox) / (Piptaz + Ceftriaxone+ Ciprofloxacin) +(Gentami
 There were 7,153 isolates with at least one AMRFinder hit in the antibiotic classes of interest. From these we detected 161 unique AMR-associated gene families including 1292 unique ARGs within them. 158/1292 (12%) where present >=10 times and 374/1292 (29%) were present 2-9 times in the dataset; of these 72/158 (46%) and 124/374 (33%) respectively had a 100% amino acid identity to the reference sequence in the AMRFinder database.  The majority (760/1292, 59%) of unique ARGs occurred only once (“singletons”; Figure 3); these could either have a limited phenotypic effect and therefore not be readily selected for, be associated with a high fitness cost and be therefore commonly lost, be currently rare (e.g. because they have recently emerged) or be bioinformatic/sequencing noise. 
 
 ```{r}
-out<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT')
+out<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT') %>% filter(guuid %in% guuids_keep$Isolate) %>% 
+  filter(class != 'fosfomycin')
+
 out_family<-read_tsv('./data/out_family.tsv')
 
 
@@ -1339,7 +1387,6 @@ amrfinder<-read_tsv('./data/amrfinder_gladstone_merger.tsv')
 amrfinder<-filter(amrfinder,grepl('AMINOGLYCOSIDE',Class) | grepl('AMINOGLYCOSIDE',Subclass) |
                     grepl('QUINOLONE',Class) | grepl('QUINOLONE',Subclass) |
                     grepl('BETA-LACTAM',Class) | grepl('BETA-LACTAM',Subclass) |
-                    grepl('FOSFOMYCIN', Class) | grepl('FOSFOMYCIN',Subclass) |
                     grepl('TRIMETHOPRIM',Class) | grepl('TRIMETHOPRIM',Subclass))
 point<-filter(amrfinder,`Element subtype` =='POINT')
 #36637 genes detected
@@ -1349,13 +1396,15 @@ amrfinder_exact<-filter(amrfinder,`% Identity to reference sequence`==100,`% Cov
 
 17177/36637
 
-amrfinder<-filter(amrfinder,guuid %in% guuids$guuid)
+amrfinder<-filter(amrfinder,guuid %in% out$guuid)
 
 length(unique(out$guuid))
-#7153 isolates with at least one AMRFinder hit
+#6682 isolates with at least one AMRFinder hit
 length(unique(out$gene))
-#159 AMRFinder genes
+length(unique(guuids_keep$Isolate))
+#157 AMRFinder genes
 
+6682/8945
 
 
 core<-c("AcrR","GyrA","ParA","ParC","ParE","PtsI","SoxR","SoxS","UhpT","MarR","GlpT","AmpC","emrR","ftsI")
@@ -1369,7 +1418,7 @@ out$new_allele<-paste0(out$class,'_',out$allele)
 length(unique(out$new_allele))
 
 
-#1292 unique ARGs
+#1143 unique ARGs
 
 
 out_save<-out
@@ -1402,11 +1451,11 @@ There was no evidence of a difference in the proportion of singletons vs non-sin
 ```{r}
 
 table(out_single$exact,out_single$Singleton)
-253+507
-253/760
+243+425
+243/668
 
-197+335
-197/532
+193+282
+193/475
 chisq.test(out_single$exact,out_single$Singleton)
 ```
 
@@ -1433,7 +1482,7 @@ kruskal.test(out_save$depth,out_save$singleton)
 
 out_save %>% group_by(singleton) %>% summarise(d=median(depth,na.rm = T),q1=quantile(depth,probs=0.25,na.rm=T),q3=quantile(depth,probs=0.75,na.rm=T))
 
-Fig_S1<-ggplot(out_save) +
+Fig_S2<-ggplot(out_save) +
   aes(x=depth) +
   geom_histogram() +
   facet_wrap(~singleton) + theme_minimal()  +
@@ -1456,6 +1505,7 @@ out_sing$guuid_full<-paste0(out_sing$guuid,'_',out_sing$gene)
 
 skesa_shovill<-read_tsv('./data/skesa_shovill.dist',col_names = F)
 skesa_shovill<-filter(skesa_shovill,X1==X2)
+
 skesa_shovill$single<-ifelse(skesa_shovill$X1 %in% out_sing$guuid_full & skesa_shovill$X2 %in% out_sing$guuid_full,1,0)
 table(skesa_shovill$single)
 skesa_shovill$exact<-ifelse(skesa_shovill$X3==0,"exact","not exact")
@@ -1702,17 +1752,15 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 for(i in 1:nrow(ecoli_rare_double)){
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
+  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
-
 ecoli_rare_double$isolate<-NA
 ecoli_rare_double$catalogue<-"Double_Rarefaction"
 ecoli_rare_double$n<-NA
@@ -1854,15 +1902,14 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 for(i in 1:nrow(ecoli_rare_double)){
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
+  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2006,15 +2053,14 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 for(i in 1:nrow(ecoli_rare_double)){
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
+  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2160,15 +2206,14 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 for(i in 1:nrow(ecoli_rare_double)){
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
+  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2214,160 +2259,6 @@ ecol_aminog_boot<-ecol_aminog_boot +
   geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2)
 
 cephalosporin<-out2
-
-#########fosfomycin
-
-
-gene_classes<-read_tsv('./data/fosfomycin_gene_classes.tsv',col_names=F) 
-
-
-
-ag_out<-filter(out_save,gene %in% gene_classes$X1)
-
-
-ag_ecol<-ag_out
-
-
-count_table<-ag_ecol %>% distinct(guuid,new_allele,.keep_all = T) %>%  group_by(new_allele) %>% count() 
-count_table$Singleton<-ifelse(count_table$n==1,1,0)
-count_table$Double<-ifelse(count_table$n >=2 & count_table$n <10,1,0)
-count_table$Tenner<-ifelse(count_table$n >=10,1,0)
-
-count_table<-select(count_table,-n)
-
-ag_ecol<-left_join(ag_ecol,count_table,by=c("new_allele"="new_allele"))
-
-
-guuids<-unique(ag_ecol$guuid)
-#dates<-read_tsv('~/gn/data/ecoli/Escherichia_guuids_match') %>% select(guuid,date)
-#guuids<-data.frame(guuids)
-#guuids<-left_join(guuids,dates,by=c("guuids"="guuid"))
-#guuids<-arrange(guuids,date)
-#guuids<-filter(guuids,!is.na(date))
-guuids<-sample(guuids)
-collection=NULL
-out=NULL
-
-for(g in guuids){
-  print(g)
-  p<-filter(ag_ecol,guuid==g)
-  collection<-rbind(collection,data.frame(p))
-  alleles<-length(unique(collection$gene))
-  new_alleles<-length(unique(collection$new_allele))
-  singletons<-filter(collection,Singleton==1)
-  singletons<-length(unique(singletons$new_allele))
-  confirmed<-filter(collection,Double==1)
-  confirmed<-length(unique(confirmed$new_allele))
-  tenner<-filter(collection,Tenner==1)
-  tenner<-length(unique(tenner$new_allele))
-  out<-rbind(out,data.frame(g,alleles,singletons,confirmed,tenner))
-}
-
-out$isolate<-1:nrow(out)
-out<-select(out,isolate,g,everything())
-
-out<-pivot_longer(out,names_to = "catalogue",values_to = "n",cols = 3:6)
-
-out$catalogue<-case_when(out$catalogue == 'alleles' ~ 'AMR Finder',
-                         out$catalogue == 'confirmed' ~ 'Allele observed at least twice',
-                         out$catalogue == 'singletons' ~ 'Allele observed at least once',
-                         out$catalogue == 'tenner' ~ 'Allele observed at least ten times')
-
-colors<-c( "#4BACCC","#239135","#DE1414")
-names(colors)<-c('Allele observed at least once','Allele observed at least twice','Allele observed at least ten times')
-out<-filter(out,catalogue != 'AMR Finder')
-ecol_aminog<-ggplot(out) +
-  aes(x=isolate,y=n,color=catalogue,group=catalogue) +
-  geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 resistance associated allele") + ggtitle("E. coli - Aminoglycosides")  + labs(color="Category") +
-  scale_color_manual(values=colors) + geom_vline(xintercept = 300,linetype="dashed")
-
-ecol_aminog
-############bootstrap###############
-
-
-ag_ecol<-filter(ag_ecol,guuid %in% guuids)
-
-ecoli_working<-ag_ecol %>% select(guuid,new_allele)
-names(ecoli_working)<-c('guuid','gene')
-
-ecoli_working<-data.frame(table(ecoli_working)) %>% spread(gene,Freq)
-
-
-
-ecoli_working<-select(ecoli_working,-guuid)
-
-library(micropan)
-double<-filter(ag_ecol,Double==1)
-ecoli_working_double<-select(ecoli_working,double$new_allele)
-single<-filter(ag_ecol,Singleton==1)
-ecoli_working_single<-select(ecoli_working,single$new_allele)
-tenner<-filter(ag_ecol,Tenner==1)
-ecoli_working_tenner<-select(ecoli_working,tenner$new_allele)
-
-
-
-ecoli_rare_tenner<-rarefaction(ecoli_working_tenner,n.perm = 100)
-ecoli_rare_double<-rarefaction(ecoli_working_double,n.perm = 100)
-ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
-
-
-
-for(i in 1:nrow(ecoli_rare_double)){
-  print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
-  
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
-  
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
-}
-
-ecoli_rare_double$isolate<-NA
-ecoli_rare_double$catalogue<-"Double_Rarefaction"
-ecoli_rare_double$n<-NA
-ecoli_rare_double<-select(ecoli_rare_double,Genome,isolate,catalogue,n,b1,b2)
-names(ecoli_rare_double)<-c('isolate','g','catalogue','n','b1','b2')
-
-ecoli_rare_single$isolate<-NA
-ecoli_rare_single$catalogue<-"Single_Rarefaction"
-ecoli_rare_single$n<-NA
-ecoli_rare_single<-select(ecoli_rare_single,Genome,isolate,catalogue,n,b1,b2)
-names(ecoli_rare_single)<-c('isolate','g','catalogue','n','b1','b2')
-
-ecoli_rare_tenner$isolate<-NA
-ecoli_rare_tenner$catalogue<-"Tenner_Rarefaction"
-ecoli_rare_tenner$n<-NA
-ecoli_rare_tenner<-select(ecoli_rare_tenner,Genome,isolate,catalogue,n,b1,b2)
-names(ecoli_rare_tenner)<-c('isolate','g','catalogue','n','b1','b2')
-
-
-
-out2<-out
-out2$b1<-NA
-out2$b2<-NA
-
-out2<-rbind(out2,ecoli_rare_double,ecoli_rare_single,ecoli_rare_tenner)
-
-out2$b1<-unlist(out2$b1)
-out2$b2<-unlist(out2$b2)
-ecol_aminog_boot<-ggplot(out2) +
-  aes(x=isolate,y=n,color=catalogue,group=catalogue) +
-  geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 resistance associated allele") + ggtitle("E. coli - Aminoglycosides - 74% (61-86)")  + labs(color="Category") +
-  scale_color_manual(values=colors) + geom_vline(xintercept = 300,linetype="dashed") 
-
-library(ggnewscale)
-ecol_aminog_boot<-ecol_aminog_boot + new_scale_color()  
-
-
-ecol_aminog_boot<-ecol_aminog_boot +
-  geom_ribbon(data = filter(out2,catalogue=="Single_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) + 
-  geom_ribbon(data = filter(out2,catalogue=="Double_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) +
-  geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2)
-
-fosfomycin<-out2
 
 ##########trimethoprim
 
@@ -2468,15 +2359,14 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 for(i in 1:nrow(ecoli_rare_double)){
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
+  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
   
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2527,20 +2417,19 @@ trimethoprim<-out2
 ###########put it together#########
 
 trimethoprim$drug<-"Trimethoprim"
-fosfomycin$drug<-"Fosfomycin"
 cephalosporin$drug<-"Cephalosporin"
 beta_lactam$drug<-"Beta-lactam"
 aminoglycosides$drug<-"Aminoglycoside"
 quinolone$drug<-"Quinolone"
 
-all<-rbind(beta_lactam,aminoglycosides,quinolone,cephalosporin,fosfomycin,trimethoprim)
+all<-rbind(beta_lactam,aminoglycosides,quinolone,cephalosporin,trimethoprim)
 all$catalogue<-ifelse(all$catalogue=="Allele observed at least once","Allele observed once",
                       ifelse(all$catalogue == "Allele observed at least twice","Allele observed 2-9 times",
                              ifelse(all$catalogue == "Allele observed at least ten times","Allele observed at least ten times",all$catalogue)))
 double<-filter(all,catalogue =='Allele observed 2-9 times' | catalogue == 'Double_Rarefaction')
 
-colors<-c("#AD3B3B" ,"#205719","#2D48E0", "#32C2B1" ,"#F79C34", "#6D5EAB")
-names(colors)<-c('Aminoglycoside','Beta-lactam','Quinolone','Cephalosporin','Fosfomycin','Trimethoprim')
+colors<-c("#AD3B3B" ,"#205719","#2D48E0", "#32C2B1" , "#6D5EAB")
+names(colors)<-c('Aminoglycoside','Beta-lactam','Quinolone','Cephalosporin','Trimethoprim')
 ecol_double<-ggplot(filter(double,catalogue=="Allele observed 2-9 times")) +
   aes(x=isolate,y=n,color=drug,group=drug) +
   geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 ARG allele") + ggtitle("ARG allele observed 2-9 times")  + labs(color="Category") +
@@ -2856,3 +2745,209 @@ exp(confint(model))
 
 ```
   
+
+```{r}
+ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT')
+ag_ecol$new_allele<-paste0(ag_ecol$gene,'_',ag_ecol$class,'_',ag_ecol$allele)
+
+gene_count<-data.frame(table(ag_ecol$gene))
+new_gene_count<-ag_ecol %>% group_by(new_allele) %>% count()
+
+new_gene_count$gene<-str_replace_all(new_gene_count$new_allele,'_.*','')
+table<-left_join(new_gene_count,gene_count,by=c("gene"="Var1"))
+names(table)<-c("new_gene","new_gene_count","gene","gene_count")
+point<-c('UhpT','GyrA','ParE','ParC','MarR','PtsI')
+table<-filter(table,!gene %in% point)
+class<-select(ag_ecol,new_allele,class) %>% distinct()
+
+table<-left_join(table,class,by=c("new_gene"="new_allele"))
+table<-filter(table,new_gene_count >=86)
+ag<-ggplot(filter(table,class=='aminoglycoside')) +
+  aes(x=gene_count,y=new_gene_count,color=gene) +
+  geom_jitter() + scale_x_log10() + scale_y_log10()  +
+  facet_wrap(~class)
+trim<-ag<-ggplot(filter(table,class=='trimethoprim')) +
+  aes(x=gene_count,y=new_gene_count,color=gene) +
+  geom_jitter() + scale_x_log10() + scale_y_log10()  +
+  facet_wrap(~class)
+bl<-ggplot(filter(table,class=='betalactam')) +
+  aes(x=gene_count,y=new_gene_count,color=gene) +
+  geom_jitter() + scale_x_log10() + scale_y_log10()  +
+  facet_wrap(~class)
+fq<-ggplot(filter(table,class=='quinolone')) +
+  aes(x=gene_count,y=new_gene_count,color=gene) +
+  geom_jitter() + scale_x_log10() + scale_y_log10()  +
+  facet_wrap(~class)
+cs<-ggplot(filter(table,class=='cephalosporin')) +
+  aes(x=gene_count,y=new_gene_count,color=gene) +
+  geom_jitter() + scale_x_log10() + scale_y_log10()  +
+  facet_wrap(~class)
+
+ag + trim + bl + fq + cs
+cor.test(table$gene_count,table$new_gene_count,method = "pearson")
+```
+```{r pop structure}
+mlst<-read_tsv('./data/mlst.tsv',col_names = T)
+
+guuids<-select(guuids,Isolate,Study)
+
+#originate from longitudinal surveillance
+table(guuids$Study)
+1509+3464+3443
+8416/8945
+
+ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT')
+ag_ecol$new_allele<-paste0(ag_ecol$class,'_',ag_ecol$allele)
+
+ag_ecol<-left_join(ag_ecol,guuids,by=c("guuid"="Isolate"))
+
+ag_ecol$which<-ifelse(ag_ecol$Study =='Oxford' | ag_ecol$Study =='BSAC' | ag_ecol$Study =='Norway','longitudinal','other')
+
+ag_ecol<-ag_ecol %>% group_by(Study,new_allele) %>% count()
+ag_ecol<-pivot_wider(ag_ecol,id_cols = new_allele,names_from = Study,values_from = n)
+ag_ecol$flag<-ifelse((ag_ecol$Sweden >1 | ag_ecol$Thailand >1) & (ag_ecol$BSAC<2 & ag_ecol$Norway<2 & ag_ecol$Oxford <2),1,0)
+ag_ecol$flag1<-ifelse((ag_ecol$Sweden >9 | ag_ecol$Thailand >9) & (ag_ecol$BSAC<10 & ag_ecol$Norway<10 & ag_ecol$Oxford <10),1,0)
+
+```
+
+```{r longitudinal vs not}
+
+out<-out_save
+loc<-select(guuids_keep,guuid=Isolate,location=Study)
+out<-left_join(out,loc,by=c("guuid"))
+longitudinal<-c('BSAC','Oxford','Norway')
+out$location<-ifelse(out$location %in% longitudinal,'longitudinal','Not longitudinal')
+t<-out %>% group_by(new_allele,location) %>% count()
+
+
+t<-pivot_wider(t,names_from = location,values_from = n,id_cols = new_allele,values_fill = 0)
+unique_oxford<-filter(t,`Not Oxford`==0)
+
+six_times<-filter(t,  Oxford >=6)
+fa<-ggplot(filter(t,Oxford >=1)) +
+  aes(x=(Oxford),y=(`Not Oxford` )) +
+  geom_point() +
+  theme_minimal() + xlab("N times observed in Oxford") +
+  ylab("N times observed in non-Oxford studies") + ggpubr::stat_cor(method = "spearman") #+ 
+  scale_x_log10() + scale_y_log10() 
+  
+
+tt<-filter(t,longitudinal>=1)
+correlation<-cor.test(tt$`Not longitudinal`,tt$longitudinal,method = "spearman",)
+
+```
+```{r selection}
+
+ag_ecol<-read_tsv('./data/out.tsv') %>% filter(!gene=='GlpT') %>% filter(guuid %in% guuids_keep$Isolate) %>% filter(!class =='fosfomycin')
+ag_ecol$new_allele<-paste0(ag_ecol$class,'_',ag_ecol$allele)
+
+ag_ecol$guuid_gene<-paste0(ag_ecol$guuid,'_',ag_ecol$gene)
+ag_ecol<-distinct(ag_ecol,guuid_gene,.keep_all = T)
+ag_ecol$new_allele<-paste0(ag_ecol$gene,'_',ag_ecol$allele)
+primary_alleles<-ag_ecol %>% 
+  group_by(new_allele)  %>% 
+  count()
+
+primary_alleles$gene<-str_replace_all(primary_alleles$new_allele,'_.*','')
+
+primary_alleles <-ungroup(primary_alleles) %>% 
+  group_by(gene) %>% 
+  arrange(desc(n)) %>% 
+  slice(1)
+
+
+
+primary_alleles<-  ungroup(primary_alleles) %>% select(new_allele,gene,primary_count=n)
+
+selected<-filter(ag_ecol,!new_allele %in% primary_alleles$new_allele)
+selected2<-selected
+selected <-
+  selected %>% 
+  group_by(gene,new_allele) %>% 
+  count()
+primary_alleles<-select(primary_alleles,-new_allele)
+selected<-left_join(selected,primary_alleles,by=c("gene"))
+
+amrfinder<-read_tsv('./data/amrfinder_gladstone_merger.tsv')
+
+point<-filter(amrfinder,`Element subtype` =='POINT')
+point$gene<- sub(".*\\s+", "", point$`Sequence name`)
+selected<-filter(selected,!gene %in% point$gene)
+
+
+top_ten<- selected %>% 
+  arrange(desc(n)) %>% head(10) 
+
+top_ten<-filter(selected,new_allele %in% top_ten$new_allele)
+
+ggplot(selected) +
+  aes(x=primary_count,y=n) +
+  geom_point() +
+  scale_y_log10() +
+  scale_x_log10()
+
+library(ggrepel)
+
+selected$color_group<-ifelse(selected$new_allele %in% top_ten$new_allele,selected$new_allele,NA)
+selected$color_group<-case_when(selected$color_group == 'AadA1_184' ~ 'aadA1_184',
+                                selected$color_group == 'AadA1_185' ~ 'aadA1_185',
+                                selected$color_group == 'AadA1_187' ~ 'aadA1_187',
+                                selected$color_group == "APH(3'')-Ib_111" ~ "aph(3'')-Ib_111",
+                                selected$color_group == "APH(6)-Id_31" ~ "aph(6)-Id_31",
+                                selected$color_group == "APH(6)-Id_32" ~ "aph(6)-Id_32",
+                                selected$color_group == "DfrA1_7" ~ "dfrA1_7",
+                                selected$color_group == "DfrA14_19" ~ "dfrA14_19",
+                                selected$color_group == "TEM-1_3" ~ "blaTEM-1_3",
+                                selected$color_group == "TEM-1_9" ~ "blaTEM-1_9",
+                                TRUE~"other")
+selected$color_group<-ifelse(selected$color_group =='other',NA,selected$color_group)
+
+
+plot<-ggplot(selected, aes(x = primary_count, y = n)) +
+  geom_point() +
+  scale_y_log10() +
+  scale_x_log10() + theme_minimal() +
+  geom_text_repel(aes(label=color_group)) +
+  xlab("Number of times catalogued primary allele is observed in the dataset") +
+  ylab("Number of times non-catalogued allele is observed in the dataset") +
+  labs(color="gene") +
+  scale_color_manual(values=mycolors)
+
+
+selected2<-
+  selected2 %>% 
+  group_by(gene) %>% distinct(new_allele) %>% 
+  count()
+
+count<-ag_ecol %>% 
+  group_by(gene) %>%  
+  count()
+selected2<- left_join(selected2,count,by=c("gene"="gene"))
+
+names(selected2)<-c("gene","number of non-catalogued alleles","number of times observed in dataset")
+selected2<-filter(selected2,!gene %in% point$gene)
+
+selected2$gene<-ifelse(selected2$gene=='beta-lactamase','blaTEM group beta-lactamase',selected2$gene)
+
+selected2$color_group<-ifelse(selected2$gene %in% top_ten$gene,selected2$gene,"other")
+selected2$color_group<-case_when(selected2$color_group == 'AadA1' ~ 'aadA1',
+                                selected2$color_group == "APH(3'')-Ib" ~ "aph(3'')-Ib",
+                                selected2$color_group == "APH(6)-Id" ~ "aph(6)-Id",
+                                selected2$color_group == "DfrA1" ~ "dfrA1",
+                                selected2$color_group == "DfrA14" ~ "dfrA14",
+                                selected2$color_group == "TEM-1" ~ "blaTEM-1",
+                                selected2$color_group == "TEM-1" ~ "blaTEM-1",
+                                TRUE~"other")
+selected2$color_group<-ifelse(selected2$color_group =='other',NA,selected2$color_group)
+plot2<-ggplot(selected2)+
+  aes(x=`number of times observed in dataset`,y=`number of non-catalogued alleles`) +
+  geom_point()+
+  geom_text_repel(aes(label=color_group))+
+  theme_minimal() + scale_x_log10()+
+  labs(color="gene") +
+  xlab("Number of times primary allele observed in dataset") +
+  ylab("Number of non-catalogued alleles")
+
+plot + plot2 + plot_layout(guides="collect")
+```
+
