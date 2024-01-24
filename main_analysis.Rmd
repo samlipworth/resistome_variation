@@ -633,7 +633,7 @@ plot_table <- plot_table %>%
     class %in% c("quinolone", "trimethoprim") ~ "Row2",
     TRUE ~ NA_character_
   ))
-Figure2<-ggplot(plot_table) +
+Figure3_top<-ggplot(plot_table) +
   aes(x=category,y=n) +
   geom_bar(stat="identity") + theme_minimal() + 
   xlab("Number of times ARG observed in dataset") + ylab("Count") + 
@@ -1589,18 +1589,18 @@ ecoli_rare_double<-rarefaction(ecoli_working_double,n.perm = 100)
 ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.025))
-  ecoli_rare_double$b2[i]<-quantile(ecoli_rare_double[i,2:101],probs=c(0.975))
-  
-  ecoli_rare_single$b1[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.025))
-  ecoli_rare_single$b2[i]<-quantile(ecoli_rare_single[i,2:101],probs=c(0.975))
-  
-  ecoli_rare_tenner$b1[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.025))
-  ecoli_rare_tenner$b2[i]<-quantile(ecoli_rare_tenner[i,2:101],probs=c(0.975))
-  
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
+
 
 ecoli_rare_double$isolate<-NA
 ecoli_rare_double$catalogue<-"Double_Rarefaction"
@@ -1635,13 +1635,20 @@ out2<-filter(out2,catalogue != 'AMR Finder')
 colors<-c( "#4BACCC","#239135","#DE1414")
 out2$catalogue<-ifelse(out2$catalogue=="Allele observed at least once","Allele observed once",
                        ifelse(out2$catalogue=="Allele observed at least twice","Allele observed 2-9 times",
-                              ifelse(out2$catalogue =="Allele observed at least ten times","Allele observed at least ten times",out2$catalogue)))
+                              ifelse(out2$catalogue =="Allele observed at least ten times","Allele observed at least ten times",out2$catalogue))) 
 names(colors)<-c('Allele observed once','Allele observed 2-9 times','Allele observed at least ten times')
 
 ecol_aminog_boot<-ggplot(out2) +
   aes(x=isolate,y=n,color=catalogue,group=catalogue) +
   geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 resistance associated allele")  + labs(color="Category") +
-  scale_color_manual(values=colors) 
+  scale_color_manual(values=colors) + 
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
 
 library(ggnewscale)
 ecol_aminog_boot<-ecol_aminog_boot + new_scale_color()  
@@ -1650,7 +1657,14 @@ ecol_aminog_boot<-ecol_aminog_boot + new_scale_color()
 ecol_aminog_boot<-ecol_aminog_boot +
   geom_ribbon(data = filter(out2,catalogue=="Single_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) + 
   geom_ribbon(data = filter(out2,catalogue=="Double_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) +
-  geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2)
+  geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2)  + 
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
 
 ecol_aminog_boot_save<-ecol_aminog_boot
 ```
@@ -1749,18 +1763,18 @@ ecoli_rare_double<-rarefaction(ecoli_working_double,n.perm = 100)
 ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
-
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
-  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
-  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
-  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
+
 ecoli_rare_double$isolate<-NA
 ecoli_rare_double$catalogue<-"Double_Rarefaction"
 ecoli_rare_double$n<-NA
@@ -1801,7 +1815,15 @@ ecol_aminog_boot<-ecol_aminog_boot + new_scale_color()
 ecol_aminog_boot<-ecol_aminog_boot +
   geom_ribbon(data = filter(out2,catalogue=="Single_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) + 
   geom_ribbon(data = filter(out2,catalogue=="Double_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) +
-  geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2)
+  geom_ribbon(data = filter(out2,catalogue=="Tenner_Rarefaction"), aes(x=isolate,ymin=b1,ymax=b2),alpha=0.2) + 
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
+
 
 aminoglycosides<-out2
 
@@ -1900,18 +1922,17 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
 
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
-  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
-  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
-  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
-}
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
 
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
+}
 ecoli_rare_double$isolate<-NA
 ecoli_rare_double$catalogue<-"Double_Rarefaction"
 ecoli_rare_double$n<-NA
@@ -2051,16 +2072,16 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
 
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
-  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
-  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
-  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2203,17 +2224,16 @@ ecoli_rare_double<-rarefaction(ecoli_working_double,n.perm = 100)
 ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
-
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
-  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
-  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
-  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2357,16 +2377,16 @@ ecoli_rare_single<-rarefaction(ecoli_working_single,n.perm = 100)
 
 
 
-for(i in 1:nrow(ecoli_rare_double)){
+for(i in 1:nrow(ecoli_rare_double)) {
   print(i)
-  ecoli_rare_double$b1[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.025))
-  ecoli_rare_double$b2[i] <- quantile(as.numeric(ecoli_rare_double[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_single$b1[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.025))
-  ecoli_rare_single$b2[i] <- quantile(as.numeric(ecoli_rare_single[i, 2:101]), probs = c(0.975))
-  
-  ecoli_rare_tenner$b1[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
-  ecoli_rare_tenner$b2[i] <- quantile(as.numeric(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
+  ecoli_rare_double$b1[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.025))
+  ecoli_rare_double$b2[i] <- quantile(unlist(ecoli_rare_double[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_single$b1[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.025))
+  ecoli_rare_single$b2[i] <- quantile(unlist(ecoli_rare_single[i, 2:101]), probs = c(0.975))
+
+  ecoli_rare_tenner$b1[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.025))
+  ecoli_rare_tenner$b2[i] <- quantile(unlist(ecoli_rare_tenner[i, 2:101]), probs = c(0.975))
 }
 
 ecoli_rare_double$isolate<-NA
@@ -2433,19 +2453,44 @@ names(colors)<-c('Aminoglycoside','Beta-lactam','Quinolone','Cephalosporin','Tri
 ecol_double<-ggplot(filter(double,catalogue=="Allele observed 2-9 times")) +
   aes(x=isolate,y=n,color=drug,group=drug) +
   geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 ARG allele") + ggtitle("ARG allele observed 2-9 times")  + labs(color="Category") +
-  scale_color_manual(values=colors) 
+  scale_color_manual(values=colors)  +
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        plot.title = element_text(size=18),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
+
 
 ten<-filter(all,catalogue =='Allele observed at least ten times' | catalogue == 'Tenner_Rarefaction')
 ecol_ten<-ggplot(filter(ten,catalogue=="Allele observed at least ten times")) +
   aes(x=isolate,y=n,color=drug,group=drug) +
   geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 ARG allele") + ggtitle("ARG allele observed at least ten times")  + labs(color="Category") +
-  scale_color_manual(values=colors) 
+  scale_color_manual(values=colors) +
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        plot.title = element_text(size=18),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
 
 single<-filter(all,catalogue == 'Allele observed once' | catalogue == 'Single_Rarefacetion')
 ecol_single<-ggplot(filter(single,catalogue=="Allele observed once")) +
   aes(x=isolate,y=n,color=drug,group=drug) +
   geom_line(size=2) + theme_minimal() + ylab("Number of unique alleles") + xlab("Number of isolates with >=1 ARG allele") + ggtitle("ARG allele observed once")  + labs(color="Category") +
-  scale_color_manual(values=colors) 
+  scale_color_manual(values=colors) +
+        theme(axis.title.y = element_text(size = 18),
+              axis.title.x = element_text(size = 18),
+        axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=14),
+        strip.text = element_text(size=14),
+        plot.title = element_text(size=18),
+        legend.title = element_text(size=18),
+        legend.text = element_text(size=14))
 
 
 ecol_aminog_boot_save /(ecol_single + ecol_double + ecol_ten) + plot_layout(guides = "collect")
